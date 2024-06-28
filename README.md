@@ -5,9 +5,10 @@ a fast and reliable shell.
 ## Coding style
 ### C
 See [suckless](https://suckless.org/coding_style/) to learn about how we write
-our code.
+our C code.
 ### Rust
-TODO
+See [Rust style guide](https://doc.rust-lang.org/nightly/style-guide/index.html)
+to learn about how we write our Rust code.
 
 ## Roadmap
 - [ ] Simple REPL to execute arbitrary commands from $PATH.
