@@ -11,9 +11,11 @@ See [Rust style guide](https://doc.rust-lang.org/nightly/style-guide/index.html)
 to learn about how we write our Rust code.
 
 ## Roadmap
+### Shell (C)
 - [ ] Simple REPL to execute arbitrary commands from $PATH.
-- [ ] Basic shell builtins.
-- [ ] Write alternatives to some common Unix programs in Rust and get those
-      builtin to the shell.
 - [ ] Pipes and redirection.
 - [ ] Conditionals, loops...
+### Builtin (Rust)
+- [ ] fcat (cat on steroids)
+
+TODO Think of more commands that should be builtin
