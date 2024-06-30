@@ -1,11 +1,11 @@
 .PHONY: all
-all: fcat
+all: qcat
 
 # .PHONY since we let Cargo do the work
-.PHONY: fcat
-fcat:
+.PHONY: qcat
+qcat:
 	cd $@/ && cargo build && cp target/debug/$@ ../..
 
 .PHONY: clean
 clean:
-	rm -rdf fcat/target/
+	rm -rdf qcat/target/

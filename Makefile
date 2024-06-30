@@ -14,4 +14,4 @@ builtin:
 .PHONY: clean
 clean:
 	@${MAKE} -C builtin $@
-	rm -f dmsh fcat
+	rm -f dmsh qcat

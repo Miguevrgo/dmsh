@@ -6,7 +6,7 @@ use text_colorizer::*;
 fn print_usage() {
     eprintln!(
         "{} - concatenate files and print on the standard output",
-        "qcat".green()
+        "qcat".green(),
     );
     eprintln!("Usage: qcat [OPTION]... [FILE]...");
 }
@@ -28,12 +28,13 @@ fn print_boxed_content(file_name: &str, lines: Vec<String>) {
             "┃ {: >4} ┃ {: ^max_width$} ┃",
             index + 1,
             line,
-            max_width = max_width
+            max_width = max_width,
         );
     }
 
     println!("┗{:━<width$}┛", "", width = width);
 }
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -42,7 +43,7 @@ fn main() {
         eprintln!(
             "{} wrong number of arguments: expected > 1, got {}.",
             "Error:".red().bold(),
-            args.len()
+            args.len(),
         );
         std::process::exit(1);
     }
@@ -64,4 +65,3 @@ fn main() {
         }
     }
 }
-
