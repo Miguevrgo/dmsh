@@ -19,7 +19,7 @@
 #define DMSH_TOKEN_DELIM " \t\r\n\a"
 #define DMSH_PERRNEXIT(str) \
 	do { \
-		perror("dmsh"); \
+		perror(str); \
 		exit(EXIT_FAILURE); \
 	} while(0)
 #define DMSH_NO_STATUS 256 /* Maximum exit value for process is 255 */
