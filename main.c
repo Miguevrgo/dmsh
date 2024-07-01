@@ -8,8 +8,7 @@
 
 #define STR(x) #x
 #define DMSH_TOKEN_EXIT STR(exit)
-#define DMSH_PROMPT "dmsh$ " /* Using '%' instead of '$' needs escaping for
-                                printf. */
+#define DMSH_PROMPT "dmsh$ "
 #define DMSH_BUFSIZE 1024
 #define DMSH_ERRNEXIT(...) \
 	do { \
