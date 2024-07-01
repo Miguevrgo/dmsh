@@ -13,6 +13,8 @@
 		fprintf(stderr, __VA_ARGS__); \
 		exit(EXIT_FAILURE); \
 	} while(0)
+#define DMSH_TOKEN_BUFSIZE 64
+#define DMSH_TOKEN_DELIM " \t\r\n\a"
 
 int
 dmsh_continue(const char *line)
@@ -61,17 +63,45 @@ dmsh_read_line(void)
 	}
 }
 
+char **
+dmsh_split_line(char *line)
+{
+	size_t bufsize = DMSH_TOKEN_BUFSIZE, position = 0;
+	char **tokens = malloc(bufsize * sizeof(char*));
+	char *token;
+
+	if(!tokens)
+		DMSH_ERRNEXIT("dmsh: could not allocate token buffer\n");
+	token = strtok(line, DMSH_TOKEN_DELIM); /* strtok is not thread safe but we
+	                                           don't care */
+	while(token) {
+		tokens[position] = token;
+		position++;
+		if (position >= bufsize)  {
+			tokens = realloc(tokens, bufsize * sizeof(char*));
+			if (!tokens)
+				DMSH_ERRNEXIT("dmsh: could not reallocate token buffer\n");
+		}
+		token = strtok(NULL, DMSH_TOKEN_DELIM);
+	}
+	tokens[position] = NULL;
+
+	return tokens;
+}
+
 int
 main(void)
 {
 	char *line;
+	char **tokens;
 
 	printf("Type \"exit\" to exit the shell\n");
 	do {
 		printf(DMSH_PROMPT);
 		line = dmsh_read_line();
 		printf("Read: %s\n", line);
-	} while (dmsh_continue_and_free(line));
+		tokens = dmsh_split_line(line);
+	} while (free(tokens), dmsh_continue_and_free(line));
 
 	return EXIT_SUCCESS;
 }
