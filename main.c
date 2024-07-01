@@ -17,8 +17,7 @@
 int
 dmsh_continue(const char *line)
 {
-	static char *exit = DMSH_TOKEN_EXIT;
-	return strcmp(exit, line) && strcmp(line, "");
+	return strcmp(DMSH_TOKEN_EXIT, line) && strcmp(line, "");
 }
 
 int
