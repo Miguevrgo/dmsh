@@ -99,7 +99,6 @@ main(void)
 	do {
 		printf(DMSH_PROMPT);
 		line = dmsh_read_line();
-		printf("Read: %s\n", line);
 		tokens = dmsh_split_line(line);
 	} while (free(tokens), dmsh_continue_and_free(line));
 
