@@ -12,7 +12,8 @@ to learn about how we write our Rust code.
 
 ## Roadmap
 ### Shell (C)
-- [ ] Simple REPL to execute arbitrary commands from $PATH.
+- [x] Simple REPL to execute arbitrary commands from $PATH.
+- [ ] Builtins like `cd`, ... (We'll later integrate with Rust.)
 - [ ] Pipes and redirection.
 - [ ] Conditionals, loops...
 ### Builtin (Rust)
