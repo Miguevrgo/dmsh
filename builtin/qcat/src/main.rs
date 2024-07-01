@@ -1,8 +1,6 @@
-use core::ffi::c_int;              /// TODO:Choose between this line 
-use libc::{isatty, STDOUT_FILENO}; ///      and this one (see fn is_terminal)
 use std::env;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, IsTerminal};
 use term_size::dimensions;
 use text_colorizer::*;
 
@@ -52,17 +50,6 @@ fn print_plain_content(lines: &[String]) {
     println!("{}", lines.join("\n"));
 }
 
-fn is_terminal() -> bool {
-    unsafe { isatty(STDOUT_FILENO) != 0 }
-}
-
-/// fn is_terminal() -> bool {
-///     extern "C" {
-///         pub fn isatty(fd: c_int) -> c_int;
-///     }
-///     unsafe { isatty(STDOUT_FILENO) != 0 }
-/// }
-
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
 
@@ -84,7 +71,7 @@ fn main() {
                     .lines()
                     .map(|l| l.unwrap_or_else(|_| String::new()))
                     .collect();
-                if is_terminal() {
+                if std::io::stdout().is_terminal() {
                     print_boxed_content(&file_name, &lines);
                 } else {
                     print_plain_content(&lines);
