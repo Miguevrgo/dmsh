@@ -1,11 +1,22 @@
-.PHONY: all
-all: qcat
+.PHONY: all clean
 
-# .PHONY since we let Cargo do the work
-.PHONY: qcat
+CARGO_BUILD_DIR := target/release
+
+all: qcat lls
+
 qcat:
-	cd $@/ && cargo build --release && cp target/release/$@ ../..
+	$(MAKE) -C $@ build
+	cp $@/$(CARGO_BUILD_DIR)/qcat .
 
-.PHONY: clean
+lls:
+	$(MAKE) -C $@ build
+	cp $@/$(CARGO_BUILD_DIR)/lls .
+
 clean:
 	rm -rdf qcat/target/
+	rm -rdf lls/target/
+
+.PHONY: qcat/build lls/build
+qcat/build lls/build:
+	cd $* && cargo build --release
+
