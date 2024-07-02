@@ -17,6 +17,7 @@ to learn about how we write our Rust code.
 - [ ] Pipes and redirection.
 - [ ] Conditionals, loops...
 ### Builtin (Rust)
-- [ ] fcat (cat on steroids)
+- [x] fcat (cat on steroids)
+- [ ] lls  (pretty ls)
 
 TODO Think of more commands that should be builtin
