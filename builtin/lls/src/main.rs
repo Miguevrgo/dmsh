@@ -40,8 +40,10 @@ impl Config {
 fn is_hidden(entry: &std::fs::DirEntry) -> bool {
     entry.file_name().to_string_lossy().starts_with('.')
 }
-
+/// Modificar esto y el otro para ver si write! es mas eficiencite 
+/// https://rust-cli.github.io/book/tutorial/output.html
 fn print_long_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString) {
+    print!("hofd");
     todo!();
 }
 

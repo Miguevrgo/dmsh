@@ -1,6 +1,6 @@
-use std::env;
+use std::{env, io};
 use std::fs::File;
-use std::io::{BufRead, BufReader, IsTerminal};
+use std::io::{BufRead, BufReader, BufWriter, IsTerminal, Write};
 use term_size::dimensions;
 use text_colorizer::*;
 
@@ -14,36 +14,43 @@ fn print_usage() {
 
 fn print_boxed_content(file_name: &str, lines: &[String]) {
     let term_width: usize = dimensions().map(|(w, _)| w).unwrap_or(80);
+    let stdout = io::stdout();
+    let mut handle = BufWriter::new(stdout.lock());
 
-    println!(
+    writeln!(
+        handle,
         "\u{250F}{:\u{2501}<width$}\u{2513}",
         "",
         width = term_width - 15,
-    );
-    println!(
+    ).unwrap();
+    writeln!(
+        handle,
         "\u{2503} {: ^width$} \u{2503}",
         file_name.green(),
         width = term_width - 17,
-    );
-    println!(
+    ).unwrap();
+    writeln!(
+        handle,
         "\u{2517}{:\u{2501}<width$}\u{251B}",
         "",
         width = term_width - 15
-    );
+    ).unwrap();
 
     for (index, line) in lines.iter().enumerate() {
-        println!(
+        writeln!(
+            handle,
             "\u{2503} {} \u{2503} {}",
             format!("{: >4}", index + 1),
             line,
-        );
+        ).unwrap();
     }
 
-    println!(
+    writeln!(
+        handle,
         "\u{2517}{:\u{2501}<width$}\u{2501}",
         "",
         width = term_width - 10,
-    );
+    ).unwrap();
 }
 
 fn print_plain_content(lines: &[String]) {
