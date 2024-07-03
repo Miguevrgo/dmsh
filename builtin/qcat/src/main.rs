@@ -36,14 +36,13 @@ fn print_boxed_content(file_name: &str, lines: &[String]) {
         width = term_width - 15
     ).unwrap();
 
-    for (index, line) in lines.iter().enumerate() {
-        writeln!(
-            handle,
-            "\u{2503} {} \u{2503} {}",
-            format!("{: >4}", index + 1),
-            line,
-        ).unwrap();
-    }
+    let lines_joined = lines.iter()
+        .enumerate()
+        .map(|(index, line)| format!("\u{2503} {: >4} \u{2503} {}", index + 1, line))
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    writeln!(handle, "{}", lines_joined).unwrap();
 
     writeln!(
         handle,
