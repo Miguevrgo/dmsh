@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,16 +23,21 @@
 	} while(0)
 #define DMSH_NO_STATUS 256 /* Maximum exit value for process is 255 */
 
+static int recvsig = 0; /* Have I received SIGINT? */
+
 int
 dmsh_continue(const char *line)
 {
-	return strcmp(line, "");
+	return strcmp(line, "") || recvsig;
 }
 
 int
-dmsh_continue_and_free(char *line)
+dmsh_continue_and_handle(char *line)
 {
 	int ret = dmsh_continue(line);
+	if (recvsig)
+		printf("\n");
+	recvsig = 0;
 	free(line);
 	return ret;
 }
@@ -166,7 +172,7 @@ dmsh_exec(char **args)
 	int i;
 
 	if (args[0] == NULL) {
-		return 1;
+		return !recvsig;
 	}
 	for (i = 0; i < dmsh_num_builtins; i++) {
 		if (!strcmp(dmsh_builtin_str[i], args[0])) {
@@ -177,13 +183,26 @@ dmsh_exec(char **args)
 	return dmsh_launch(args);
 }
 
+static void
+handler(int sig)
+{
+	(void) sig;
+	recvsig = 1;
+}
+
 int
 main(void)
 {
 	char *line;
 	char **tokens;
 	int ret = 0;
+	struct sigaction sa;
 
+	sa.sa_handler = handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	if (sigaction(SIGINT, &sa, NULL) < 0)
+		DMSH_PERRNEXIT("dmsh: sigaction");
 	printf("Type \"exit\" to exit the shell\n");
 	do {
 		printf("(%d) %s", ret, DMSH_PROMPT);
@@ -191,7 +210,8 @@ main(void)
 		tokens = dmsh_split_line(line);
 		ret = dmsh_exec(tokens); /* When we exit we don't free tokens. The OS
 		                            does */
-	} while (free(tokens), dmsh_continue_and_free(line));
+	} while (free(tokens), dmsh_continue_and_handle(line));
+	printf("\n");
 
 	return EXIT_SUCCESS;
 }
