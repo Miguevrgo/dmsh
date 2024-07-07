@@ -128,6 +128,58 @@ dmsh_launch(char **args)
 }
 
 int
+dmsh_cd(char **args)
+{
+	if (args[1] == NULL) {
+		fprintf(stderr, "dmsh: Must provide path to `cd` into\n");
+		return 1;
+	}
+	if (chdir(args[1]) < 0) {
+		perror("dmsh: cd");
+		return 2;
+	}
+
+	return 0;
+}
+
+int
+dmsh_exit(char **args)
+{
+	(void) args;
+	exit(EXIT_SUCCESS);
+	return 0;
+}
+
+char *dmsh_builtin_str[] = {
+	"cd",
+	"exit",
+};
+
+const int dmsh_num_builtins = sizeof(dmsh_builtin_str) / sizeof(char*);
+
+int (*dmsh_builtin_func[])(char**) = {
+	&dmsh_cd,
+	&dmsh_exit,
+};
+
+int
+dmsh_exec(char **args)
+{
+	int i;
+
+	if (args[0] == NULL) {
+		return 1;
+	}
+	for (i = 0; i < dmsh_num_builtins; i++) {
+		if (!strcmp(dmsh_builtin_str[i], args[0])) {
+			return dmsh_builtin_func[i](args);
+		}
+	}
+
+	return dmsh_launch(args);
+}
+
+int
 main(void)
 {
 	char *line;
@@ -139,7 +191,8 @@ main(void)
 		printf("(%d) %s", ret, DMSH_PROMPT);
 		line = dmsh_read_line();
 		tokens = dmsh_split_line(line);
-		ret = dmsh_launch(tokens);
+		ret = dmsh_exec(tokens); /* When we exit we don't free tokens. The OS
+		                            does */
 	} while (free(tokens), dmsh_continue_and_free(line));
 
 	return EXIT_SUCCESS;
