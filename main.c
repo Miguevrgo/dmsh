@@ -6,8 +6,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define STR(x) #x
-#define DMSH_TOKEN_EXIT STR(exit)
 #define DMSH_PROMPT "dmsh$ "
 #define DMSH_BUFSIZE 1024
 #define DMSH_ERRNEXIT(...) \
@@ -27,7 +25,7 @@
 int
 dmsh_continue(const char *line)
 {
-	return strcmp(DMSH_TOKEN_EXIT, line) && strcmp(line, "");
+	return strcmp(line, "");
 }
 
 int
