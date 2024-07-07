@@ -1,5 +1,5 @@
 use std::{
-    env, fs::{self, read_dir}, io, os::unix::fs::MetadataExt, path::PathBuf
+    env, fs::{self, read_dir}, io, os::unix::fs::MetadataExt, path::PathBuf, process::Command
 };
 use chrono::{DateTime, Local};
 use text_colorizer::*;
@@ -104,6 +104,18 @@ fn long_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString, human_si
         )
     };
 
+    let u_id = metadata.uid();
+    let g_id = metadata.gid();
+
+    let user_name = match Command::new("id").arg("-nu").arg(u_id.to_string()).output() {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).trim().to_string(),
+        Err(_) => format!("{}: invalid user id", "Error".red().bold()),
+    };
+    let group_name = match Command::new("id").arg("-ng").arg(g_id.to_string()).output() {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).trim().to_string(),
+        Err(_) => format!("{}: invalid group id", "Error".red().bold()),
+    };
+
     let size = if human_size {
         human_format(metadata.len() as f64)
     } else {
@@ -111,9 +123,11 @@ fn long_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString, human_si
     };
 
     format!(
-        "{}{} {:>8} {} {}",
+        "{}{} {} {} {:>8} {} {}",
         dir_char,
         mode,
+        user_name,
+        group_name,
         size,
         datetime,
         file_name,
