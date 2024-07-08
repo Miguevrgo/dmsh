@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -22,6 +23,8 @@
 		exit(EXIT_FAILURE); \
 	} while(0)
 #define DMSH_NO_STATUS 256 /* Maximum exit value for process is 255 */
+#define DMSH_QCAT "./qcat"
+#define DMSH_LLS "./lls"
 
 static int recvsig = 0; /* Have I received SIGINT? */
 static int pressed_return = 0; /* User pressed return (instead of CTRL-D) */
@@ -58,7 +61,7 @@ dmsh_read_line(void)
 
 	if (!buffer)
 		DMSH_ERRNEXIT("dmsh: could not allocate buffer\n");
-	for(;;) {
+	for (;;) {
 		c = getchar();
 		if (c == EOF || c == '\n') {
 			if (c == '\n')
@@ -172,9 +175,23 @@ int
 dmsh_exec(char **args)
 {
 	int i;
+	struct stat sb;
+	char *new_args[] = {[1] = args[0], NULL};
 
 	if (args[0] == NULL || !strcmp(args[0], ""))
 		return !(recvsig || pressed_return);
+	if (!args[1] && !access(args[0], R_OK)) {
+		if (lstat(args[0], &sb) < 0)
+			DMSH_PERRNEXIT("dmsh: lstat");
+		switch (sb.st_mode & S_IFMT) {
+		case S_IFREG:
+			new_args[0] = DMSH_QCAT;
+			return dmsh_launch(new_args);
+		case S_IFDIR:
+			new_args[0] = DMSH_LLS;
+			return dmsh_launch(new_args);
+		}
+	}
 	for (i = 0; i < dmsh_num_builtins; i++)
 		if (!strcmp(dmsh_builtin_str[i], args[0]))
 			return dmsh_builtin_func[i](args);
@@ -204,6 +221,8 @@ main(void)
 		DMSH_PERRNEXIT("dmsh: sigaction");
 	printf("Type \"exit\" to exit the shell\n");
 	printf("You can also press CTRL-D on an empty line\n");
+	printf("If you type a filename, dmsh will run `qcat` on it\n");
+	printf("If you type a directory name, dmsh will run `lls` on it\n");
 	do {
 		printf("(%d) %s", ret, DMSH_PROMPT);
 		line = dmsh_read_line();
