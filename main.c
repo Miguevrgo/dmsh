@@ -49,11 +49,6 @@ dmsh_continue_and_handle(char *line)
 char *
 dmsh_read_line(void)
 {
-	/* TODO Use getline
-	 * See https://brennan.io/2015/01/16/write-a-shell-in-c/
-	 * We do it like this since one of the purposes of this project is to
-	 * learn.
-	 */
 	size_t bufsize = DMSH_BUFSIZE;
 	size_t position = 0;
 	char *buffer = malloc(bufsize * sizeof(char));
@@ -73,7 +68,7 @@ dmsh_read_line(void)
 		} else {
 			buffer[position] = c;
 		}
-		position++; /* TODO Perhaps check overflow? */
+		position++;
 		if (position >= bufsize) {
 			bufsize += DMSH_BUFSIZE;
 			buffer = realloc(buffer, bufsize);

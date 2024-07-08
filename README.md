@@ -26,4 +26,9 @@ builtin in dmsh).
 ## TODO
 - [ ] Try not to use string literals in C when `const`ness isn't guaranteed.
 - [ ] Handle SIGINT *during* child program execution.
+- [ ] Create `install` target in Makefile and update DMSH_{QCAT,LLS} to use
+      nonlocal versions of the binaries.
 - [ ] TODOs mentioned in code comments.
+
+## Credits
+- [This](https://brennan.io/2015/01/16/write-a-shell-in-c/) great tutorial.
