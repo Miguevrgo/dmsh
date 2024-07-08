@@ -1,12 +1,13 @@
 use std::{
     env, fs::{self, read_dir}, io, os::unix::fs::MetadataExt, path::PathBuf, process::Command
 };
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Datelike, Timelike};
 use text_colorizer::*;
 
 
 #[derive(Default)]
 struct Config {
+    directory: Option<PathBuf>,
     show_all: bool,
     long_format: bool,
     sort_by_time: bool,
@@ -35,6 +36,8 @@ impl Config {
                         _ => eprintln!("{}: unknown option", ch.to_string().red().bold()),
                     }
                 }
+            } else {
+                self.directory = Some(PathBuf::from(arg));
             }
         }
     }
@@ -64,7 +67,7 @@ fn ugo_mode(mode: u32) -> String {
             match ch {
                 'r' => ch.to_string().red().to_string(),
                 'w' => ch.to_string().yellow().to_string(),
-                'x' => ch.to_string().blue().to_string(),
+                'x' => ch.to_string().green().to_string(),
                 _   => ch.to_string(),
             }
         } else {
@@ -88,14 +91,22 @@ fn human_format(size: f64) -> String {
 }
 
 fn long_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString, human_size: bool) -> String {
-    let datetime = DateTime::<Local>::from(metadata.modified().unwrap())
-        .format("%m %d %H:%M")
-        .to_string();
+    let months = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    let datetime = DateTime::<Local>::from(metadata.modified().unwrap());
+    let formatted_date = format!(
+        "{} {:02} {:02}:{:02}",
+        months[(datetime.month() - 1) as usize],
+        datetime.day(),
+        datetime.hour(),
+        datetime.minute()
+    );
     let mode = ugo_mode(metadata.mode());
     let (file_name, dir_char) = if metadata.is_dir() {
         (
-            file_name.to_string_lossy().green().bold(),
-            "d".green().to_string(),
+            file_name.to_string_lossy().blue().bold(),
+            "d".blue().to_string(),
         )
     } else {
         (
@@ -129,7 +140,7 @@ fn long_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString, human_si
         user_name,
         group_name,
         size,
-        datetime,
+        formatted_date,
         file_name,
     )
 }
@@ -137,7 +148,7 @@ fn long_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString, human_si
 
 fn short_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString) -> String {
     let file_name = if metadata.is_dir() {
-        file_name.to_string_lossy().green().bold().to_string()
+        file_name.to_string_lossy().blue().bold().to_string()
     } else {
         file_name.to_string_lossy().white().bold().to_string()
     };
@@ -159,27 +170,23 @@ fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
         });
     }
 
-    let mut entry_data: Vec<String> = Vec::new();
-
-    for entry in entries {
+    entries.iter().map(|entry| {
         let metadata = entry.metadata()?;
         let file_name = entry.file_name();
 
         if config.long_format {
-            entry_data.push(long_format(&metadata, &file_name, config.human_size));
+            Ok(long_format(&metadata, &file_name, config.human_size))
         } else {
-            entry_data.push(short_format(&metadata, &file_name));
+            Ok(short_format(&metadata, &file_name))
         }
-    }
-
-    Ok(entry_data)
+    }).collect()
 }
 
 
 fn main() -> Result<(), std::io::Error> {
     let mut config = Config::new();
     config.parse_args();
-    let path = env::current_dir()?;
+    let path = config.directory.clone().unwrap_or(env::current_dir()?);
     match list_files(&path, &config) {
         Ok(results) => {
             for result in results {
