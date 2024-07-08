@@ -1,14 +1,14 @@
 .PHONY: all clean qcat lls
 
-CARGO_BUILD_DIR := target/release
+MAKE_BUILTIN = @cd $@/ && cargo build --release && cp target/release/$@ ../..
 
 all: qcat lls
 
 qcat:
-	cd $@/ && cargo build --release && cp target/release/$@ ../..
+	${MAKE_BUILTIN}
 
 lls:
-	cd $@/ && cargo build --release && cp target/release/$@ ../..
+	${MAKE_BUILTIN}
 
 clean:
 	rm -rdf qcat/target/
