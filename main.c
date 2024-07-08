@@ -24,11 +24,12 @@
 #define DMSH_NO_STATUS 256 /* Maximum exit value for process is 255 */
 
 static int recvsig = 0; /* Have I received SIGINT? */
+static int pressed_return = 0; /* User pressed return (instead of CTRL-D) */
 
 int
 dmsh_continue(const char *line)
 {
-	return strcmp(line, "") || recvsig;
+	return strcmp(line, "") || recvsig || pressed_return;
 }
 
 int
@@ -60,6 +61,10 @@ dmsh_read_line(void)
 	for(;;) {
 		c = getchar();
 		if (c == EOF || c == '\n') {
+			if (c == '\n')
+				pressed_return = 1;
+			else
+				pressed_return = 0;
 			buffer[position] = '\0';
 			return buffer;
 		} else {
@@ -110,22 +115,19 @@ dmsh_launch(char **args)
 	pid = fork();
 	if (pid == 0) {
 		/* I'm the child */
-		if (execvp(args[0], args) < 0) {
+		if (execvp(args[0], args) < 0)
 			DMSH_PERRNEXIT("dmsh");
-		}
 	} else if (pid < 0) {
 		DMSH_PERRNEXIT("dmsh");
 	} else {
 		/* I'm the parent and my child's ok */
-		if ((wpid = wait(&status)) < 0) {
+		if ((wpid = wait(&status)) < 0)
 			DMSH_PERRNEXIT("dmsh");
-		}
-		if (WIFEXITED(status)) {
+		if (WIFEXITED(status))
 			/* Child called _exit, exit, or return from main */
 			ret = WEXITSTATUS(status);
-		} else {
+		else
 			ret = DMSH_NO_STATUS;
-		}
 	}
 
 	return ret;
@@ -171,14 +173,11 @@ dmsh_exec(char **args)
 {
 	int i;
 
-	if (args[0] == NULL) {
-		return !recvsig;
-	}
-	for (i = 0; i < dmsh_num_builtins; i++) {
-		if (!strcmp(dmsh_builtin_str[i], args[0])) {
+	if (args[0] == NULL || !strcmp(args[0], ""))
+		return !(recvsig || pressed_return);
+	for (i = 0; i < dmsh_num_builtins; i++)
+		if (!strcmp(dmsh_builtin_str[i], args[0]))
 			return dmsh_builtin_func[i](args);
-		}
-	}
 
 	return dmsh_launch(args);
 }
@@ -204,6 +203,7 @@ main(void)
 	if (sigaction(SIGINT, &sa, NULL) < 0)
 		DMSH_PERRNEXIT("dmsh: sigaction");
 	printf("Type \"exit\" to exit the shell\n");
+	printf("You can also press CTRL-D on an empty line\n");
 	do {
 		printf("(%d) %s", ret, DMSH_PROMPT);
 		line = dmsh_read_line();

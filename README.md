@@ -14,10 +14,15 @@ to learn about how we write our Rust code.
 ### Shell (C)
 - [x] Simple REPL to execute arbitrary commands from $PATH.
 - [x] Builtins like `cd`, ... (We'll later integrate with Rust.)
-- [ ] Pipes and redirection.
-- [ ] Conditionals, loops...
+- [ ] Rewrite shell so that when you press TAB on a file name, it `fcat`s the
+      file; if you presse TAB on a directory, it should `lls` that directory.
+      To do this, we'll have to use raw mode for the terminal.
 ### Builtin (Rust)
 - [x] fcat (cat on steroids)
 - [ ] lls  (pretty ls)
 
-TODO Think of more commands that should be builtin
+## Warning
+dmsh doesn't handle symbolic links. Beware of `cd` and `pwd` (`pwd` is *not* a
+builtin in dmsh).
+
+TODO Think of more commands that should be builtin.
