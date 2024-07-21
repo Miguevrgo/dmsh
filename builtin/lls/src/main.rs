@@ -1,14 +1,14 @@
+use chrono::{DateTime, Datelike, Local, Timelike};
+use libc::{c_char, getgrgid_r, getpwuid_r, group, passwd};
 use std::{
+    collections::HashMap,
     env,
     fs::{self, read_dir},
-    io, os::unix::fs::MetadataExt,
+    io,
+    os::unix::fs::MetadataExt,
     path::PathBuf,
-    collections::HashMap,
 };
-use chrono::{DateTime, Local, Datelike, Timelike};
 use text_colorizer::*;
-use libc::{c_char, getpwuid_r, getgrgid_r, passwd, group};
-
 
 #[derive(Default)]
 struct Config {
@@ -21,12 +21,10 @@ struct Config {
     show_group: bool,
 }
 
-
 impl Config {
     fn new() -> Self {
         Config::default()
     }
-
 
     fn parse_args(&mut self) {
         for arg in env::args().skip(1) {
@@ -49,11 +47,9 @@ impl Config {
     }
 }
 
-
 fn is_hidden(entry: &std::fs::DirEntry) -> bool {
     entry.file_name().to_string_lossy().starts_with('.')
 }
-
 
 fn ugo_mode(mode: u32) -> String {
     let permissions = [
@@ -68,27 +64,30 @@ fn ugo_mode(mode: u32) -> String {
         (mode & 0o001 != 0, 'x'),
     ];
 
-    permissions.iter().map(|&(bit, ch)| {
-        if bit {
-            match ch {
-                'r' => ch.to_string().red().to_string(),
-                'w' => ch.to_string().yellow().to_string(),
-                'x' => ch.to_string().green().to_string(),
-                _   => ch.to_string(),
+    permissions
+        .iter()
+        .map(|&(bit, ch)| {
+            if bit {
+                match ch {
+                    'r' => ch.to_string().red().to_string(),
+                    'w' => ch.to_string().yellow().to_string(),
+                    'x' => ch.to_string().green().to_string(),
+                    _ => ch.to_string(),
+                }
+            } else {
+                "-".to_string()
             }
-        } else {
-            "-".to_string()
-        }
-    }).collect()
+        })
+        .collect()
 }
-
 
 fn human_format(size: f64) -> String {
     let units = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z'];
     let mut size = size;
     let mut unit_index = 0;
-    
-    while size>= 1024.0 && unit_index < units.len() - 1 { // Check bounds?
+
+    while size >= 1024.0 && unit_index < units.len() - 1 {
+        // Check bounds?
         size /= 1024.0;
         unit_index += 1;
     }
@@ -102,7 +101,13 @@ fn get_user_name(uid: u32) -> String {
 
     unsafe {
         let mut ptr: *mut passwd = std::ptr::null_mut();
-        let ret = getpwuid_r(uid as libc::uid_t, &mut std::mem::zeroed(), buf.as_mut_ptr() as *mut c_char, buf.len(), &mut ptr);
+        let ret = getpwuid_r(
+            uid as libc::uid_t,
+            &mut std::mem::zeroed(),
+            buf.as_mut_ptr() as *mut c_char,
+            buf.len(),
+            &mut ptr,
+        );
         if ret == 0 && !ptr.is_null() {
             let cstr = std::ffi::CStr::from_ptr((*ptr).pw_name);
             result = cstr.to_string_lossy().to_string();
@@ -118,7 +123,13 @@ fn get_group_name(gid: u32) -> String {
 
     unsafe {
         let mut ptr: *mut group = std::ptr::null_mut();
-        let ret = getgrgid_r(gid as libc::gid_t, &mut std::mem::zeroed(), buf.as_mut_ptr() as *mut c_char, buf.len(), &mut ptr);
+        let ret = getgrgid_r(
+            gid as libc::gid_t,
+            &mut std::mem::zeroed(),
+            buf.as_mut_ptr() as *mut c_char,
+            buf.len(),
+            &mut ptr,
+        );
         if ret == 0 && !ptr.is_null() {
             let cstr = std::ffi::CStr::from_ptr((*ptr).gr_name);
             result = cstr.to_string_lossy().to_string();
@@ -136,13 +147,13 @@ fn long_format(
     config: &Config,
 ) -> String {
     let months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
     let datetime = DateTime::<Local>::from(metadata.modified().unwrap());
     let formatted_date = format!(
         "{} {:02} {:02}:{:02}",
-        months[(datetime.month() - 1) as usize],
         datetime.day(),
+        months[(datetime.month() - 1) as usize],
         datetime.hour(),
         datetime.minute()
     );
@@ -165,15 +176,17 @@ fn long_format(
     let user_name = user_cache
         .entry(u_id)
         .or_insert_with(|| get_user_name(u_id));
-    
+
     let group_name = if config.show_group {
-        format!("{} ", group_cache
-            .entry(g_id)
-            .or_insert_with(|| get_group_name(g_id)))
+        format!(
+            "{} ",
+            group_cache
+                .entry(g_id)
+                .or_insert_with(|| get_group_name(g_id))
+        )
     } else {
         String::new()
     };
-    
 
     let size = if config.human_size {
         human_format(metadata.len() as f64)
@@ -183,16 +196,9 @@ fn long_format(
 
     format!(
         "{}{} {} {}{:>8} {} {}",
-        dir_char,
-        mode,
-        user_name,
-        group_name,
-        size,
-        formatted_date,
-        file_name,
+        dir_char, mode, user_name, group_name, size, formatted_date, file_name,
     )
 }
-
 
 fn short_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString) -> String {
     let file_name = if metadata.is_dir() {
@@ -203,7 +209,6 @@ fn short_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString) -> Stri
 
     file_name
 }
-
 
 fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
     let mut entries: Vec<std::fs::DirEntry> = read_dir(path)?
@@ -221,18 +226,26 @@ fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
     let mut user_cache = HashMap::new();
     let mut group_cache = HashMap::new();
 
-    entries.iter().map(|entry| {
-        let metadata = entry.metadata()?;
-        let file_name = entry.file_name();
+    entries
+        .iter()
+        .map(|entry| {
+            let metadata = entry.metadata()?;
+            let file_name = entry.file_name();
 
-        if config.long_format {
-            Ok(long_format(&metadata, &file_name, &mut user_cache, &mut group_cache, &config))
-        } else {
-            Ok(short_format(&metadata, &file_name))
-        }
-    }).collect()
+            if config.long_format {
+                Ok(long_format(
+                    &metadata,
+                    &file_name,
+                    &mut user_cache,
+                    &mut group_cache,
+                    &config,
+                ))
+            } else {
+                Ok(short_format(&metadata, &file_name))
+            }
+        })
+        .collect()
 }
-
 
 fn main() -> Result<(), std::io::Error> {
     let mut config = Config::new();

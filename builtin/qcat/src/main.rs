@@ -1,6 +1,6 @@
-use std::{env, io};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, IsTerminal, Write};
+use std::{env, io};
 use term_size::dimensions;
 use text_colorizer::*;
 
@@ -22,21 +22,25 @@ fn print_boxed_content(file_name: &str, lines: &[String]) {
         "\u{250F}{:\u{2501}<width$}\u{2513}",
         "",
         width = term_width - 15,
-    ).unwrap();
+    )
+    .unwrap();
     writeln!(
         handle,
         "\u{2503} {: ^width$} \u{2503}",
         file_name.green(),
         width = term_width - 17,
-    ).unwrap();
+    )
+    .unwrap();
     writeln!(
         handle,
         "\u{2517}{:\u{2501}<width$}\u{251B}",
         "",
         width = term_width - 15
-    ).unwrap();
+    )
+    .unwrap();
 
-    let lines_joined = lines.iter()
+    let lines_joined = lines
+        .iter()
         .enumerate()
         .map(|(index, line)| format!("\u{2503} {: >4} \u{2503} {}", index + 1, line))
         .collect::<Vec<String>>()
@@ -49,7 +53,8 @@ fn print_boxed_content(file_name: &str, lines: &[String]) {
         "\u{2517}{:\u{2501}<width$}\u{2501}",
         "",
         width = term_width - 10,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn print_plain_content(lines: &[String]) {
@@ -59,7 +64,7 @@ fn print_plain_content(lines: &[String]) {
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    if args.len() < 1 {
+    if args.is_empty() {
         print_usage();
         eprintln!(
             "{} wrong number of arguments: expected > 1, got {}.",
@@ -78,7 +83,7 @@ fn main() {
                     .map(|l| l.unwrap_or_else(|_| String::new()))
                     .collect();
                 if std::io::stdout().is_terminal() {
-                    print_boxed_content(&file_name, &lines);
+                    print_boxed_content(file_name, &lines);
                 } else {
                     print_plain_content(&lines);
                 }
