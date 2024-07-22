@@ -16,9 +16,9 @@ struct Config {
     show_all: bool,
     long_format: bool,
     sort_by_time: bool,
-    show_size: bool,
-    human_size: bool,
+    human_readable: bool,
     show_group: bool,
+    group_directory: bool,
 }
 
 impl Config {
@@ -28,20 +28,29 @@ impl Config {
 
     fn parse_args(&mut self) {
         for arg in env::args().skip(1) {
-            if arg.starts_with('-') {
-                for ch in arg.chars().skip(1) {
-                    match ch {
-                        'a' => self.show_all = true,
-                        'l' => self.long_format = true,
-                        't' => self.sort_by_time = true,
-                        's' => self.show_size = true,
-                        'h' => self.human_size = true,
-                        'g' => self.show_group = true,
-                        _ => eprintln!("{}: unknown option", ch.to_string().red().bold()),
+            match arg {
+                arg if arg.starts_with("--") => match arg.as_str() {
+                    "--long" => self.long_format = true,
+                    "--all" => self.show_all = true,
+                    "--human-readable" => self.human_readable = true,
+                    "--group-directories-first" => self.group_directory = true,
+                    _ => eprintln!("{}: unknown option", arg.to_string().red().bold()),
+                },
+                arg if arg.starts_with('-') => {
+                    for ch in arg.chars().skip(1) {
+                        match ch {
+                            'a' => self.show_all = true,
+                            'l' => self.long_format = true,
+                            't' => self.sort_by_time = true,
+                            'h' => self.human_readable = true,
+                            'g' => self.show_group = true,
+                            _ => eprintln!("{}: unknown option", ch.to_string().red().bold()),
+                        }
                     }
                 }
-            } else {
-                self.directory = Some(PathBuf::from(arg));
+                _ => {
+                    self.directory = Some(PathBuf::from(arg));
+                }
             }
         }
     }
@@ -188,7 +197,7 @@ fn long_format(
         String::new()
     };
 
-    let size = if config.human_size {
+    let size = if config.human_readable {
         human_format(metadata.len() as f64)
     } else {
         metadata.len().to_string()
@@ -223,6 +232,13 @@ fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
         });
     }
 
+    if config.group_directory {
+        entries.sort_by_key(|e| {
+            let metadata = e.metadata().unwrap();
+            std::cmp::Reverse(metadata.is_dir())
+        });
+    }
+
     let mut user_cache = HashMap::new();
     let mut group_cache = HashMap::new();
 
@@ -238,7 +254,7 @@ fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
                     &file_name,
                     &mut user_cache,
                     &mut group_cache,
-                    &config,
+                    config,
                 ))
             } else {
                 Ok(short_format(&metadata, &file_name))
