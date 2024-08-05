@@ -160,7 +160,7 @@ fn long_format(
     ];
     let datetime = DateTime::<Local>::from(metadata.modified().unwrap());
     let formatted_date = format!(
-        "{} {:02} {:02}:{:02}",
+        "{:02} {:02} {:02}:{:02}",
         datetime.day(),
         months[(datetime.month() - 1) as usize],
         datetime.hour(),
