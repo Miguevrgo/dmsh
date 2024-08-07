@@ -4,8 +4,7 @@ a fast and reliable shell.
 
 ## Coding style
 ### C
-See [suckless](https://suckless.org/coding_style/) to learn about how we write
-our C code.
+We use .clang-format for our C code, following Mozilla style-guide
 ### Rust
 See [Rust style guide](https://doc.rust-lang.org/nightly/style-guide/index.html)
 to learn about how we write our Rust code.
@@ -16,8 +15,9 @@ to learn about how we write our Rust code.
 - [x] Builtins like `cd`, ...
 - [x] Integrate Rust builtins with the shell.
 ### Builtin (Rust)
-- [x] fcat (cat on steroids)
-- [ ] lls  (pretty ls)
+- [x] qcat (cat on steroids)
+- [x] lls  (pretty ls)
+- [ ] qfind (quick find)
 
 ## Warning
 dmsh doesn't handle symbolic links. Beware of `cd` and `pwd` (`pwd` is *not* a
