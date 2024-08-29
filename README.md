@@ -17,7 +17,8 @@ to learn about how we write our Rust code.
 ### Builtin (Rust)
 - [x] qcat (cat on steroids)
 - [x] lls  (pretty ls)
-- [ ] qfind (quick find)
+- [x] qfind (quick find)
+- [ ] qgrep (quick grep)
 
 ## Warning
 dmsh doesn't handle symbolic links. Beware of `cd` and `pwd` (`pwd` is *not* a
