@@ -91,21 +91,21 @@ fn ugo_mode(mode: u32) -> String {
 }
 
 fn human_format(size: f64) -> String {
-    let units = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z'];
+    const UNITS: [char; 8] = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z'];
     let mut size = size;
     let mut unit_index = 0;
 
-    while size >= 1024.0 && unit_index < units.len() - 1 {
-        // Check bounds?
+    // Whole internet is around 64 Zetabytes, no bound checking
+    while size >= 1024.0 {
         size /= 1024.0;
         unit_index += 1;
     }
 
-    format!("{:.1}{} ", size, units[unit_index])
+    format!("{:.1}{} ", size, UNITS[unit_index])
 }
 
 fn get_user_name(uid: u32) -> String {
-    let mut buf: [u8; 1024] = [0; 1024];
+    let mut buf: [u8; 512] = [0; 512];
     let mut result = String::new();
 
     unsafe {
@@ -127,7 +127,7 @@ fn get_user_name(uid: u32) -> String {
 }
 
 fn get_group_name(gid: u32) -> String {
-    let mut buf: [u8; 1024] = [0; 1024];
+    let mut buf: [u8; 512] = [0; 512];
     let mut result = String::new();
 
     unsafe {
