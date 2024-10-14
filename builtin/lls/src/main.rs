@@ -19,6 +19,7 @@ struct Config {
     human_readable: bool,
     show_group: bool,
     group_directory: bool,
+    show_icons: bool,
 }
 
 impl Config {
@@ -34,6 +35,7 @@ impl Config {
                     "--all" => self.show_all = true,
                     "--human-readable" => self.human_readable = true,
                     "--group-directories-first" => self.group_directory = true,
+                    "--icons" => self.show_icons = true,
                     _ => eprintln!("{}: unknown option", arg.to_string().red().bold()),
                 },
                 arg if arg.starts_with('-') => {
@@ -84,7 +86,7 @@ fn ugo_mode(mode: u32) -> String {
                     _ => ch.to_string(),
                 }
             } else {
-                "-".to_string()
+                "-".to_string().truecolor(192, 192, 192).to_string()
             }
         })
         .collect()
@@ -167,7 +169,7 @@ fn long_format(
         datetime.minute()
     );
     let mode = ugo_mode(metadata.mode());
-    let (file_name, dir_char) = if metadata.is_dir() {
+    let (mut file_name, dir_char) = if metadata.is_dir() {
         (
             file_name.to_string_lossy().blue().bold(),
             "d".blue().to_string(),
@@ -178,6 +180,10 @@ fn long_format(
             "-".white().to_string(),
         )
     };
+
+    if config.show_icons && metadata.is_dir() {
+        file_name = format!("📂{file_name}").blue().to_string().bold()
+    }
 
     let u_id = metadata.uid();
     let g_id = metadata.gid();
