@@ -182,7 +182,7 @@ fn long_format(
     };
 
     if config.show_icons && metadata.is_dir() {
-        file_name = format!("📂{file_name}").blue().to_string().bold()
+        file_name = format!("\u{f07b} {file_name}").blue().to_string().bold()
     }
 
     let u_id = metadata.uid();
