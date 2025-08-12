@@ -92,18 +92,18 @@ fn ugo_mode(mode: u32) -> String {
         .collect()
 }
 
-fn human_format(size: f64) -> String {
+fn human_format(size: u64) -> String {
     const UNITS: [char; 8] = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z'];
-    let mut size = size;
     let mut unit_index = 0;
+    let mut size = size * 10;
 
     // Whole internet is around 64 Zetabytes, no bound checking
-    while size >= 1024.0 {
-        size /= 1024.0;
+    while size >= 10240 {
+        size >>= 10;
         unit_index += 1;
     }
 
-    format!("{:.1}{} ", size, UNITS[unit_index])
+    format!("{:.1}{} ", size as f64 / 10.0, UNITS[unit_index])
 }
 
 fn get_user_name(uid: u32) -> String {
@@ -204,15 +204,12 @@ fn long_format(
     };
 
     let size = if config.human_readable {
-        human_format(metadata.len() as f64)
+        human_format(metadata.len())
     } else {
         metadata.len().to_string()
     };
 
-    format!(
-        "{}{} {} {}{:>8} {} {}",
-        dir_char, mode, user_name, group_name, size, formatted_date, file_name,
-    )
+    format!("{dir_char}{mode} {user_name} {group_name}{size:>8} {formatted_date} {file_name}")
 }
 
 fn short_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString) -> String {
@@ -232,14 +229,14 @@ fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
         .collect();
 
     if config.sort_by_time {
-        entries.sort_by_key(|e| {
+        entries.sort_unstable_by_key(|e| {
             let metadata = e.metadata().unwrap();
             std::cmp::Reverse(metadata.modified().unwrap())
         });
     }
 
     if config.group_directory {
-        entries.sort_by_key(|e| {
+        entries.sort_unstable_by_key(|e| {
             let metadata = e.metadata().unwrap();
             std::cmp::Reverse(metadata.is_dir())
         });
@@ -276,7 +273,7 @@ fn main() -> Result<(), std::io::Error> {
     match list_files(&path, &config) {
         Ok(results) => {
             for result in results {
-                println!("{}", result);
+                println!("{result}");
             }
         }
         Err(err) => {
