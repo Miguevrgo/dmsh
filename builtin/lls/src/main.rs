@@ -4,11 +4,20 @@ use std::{
     collections::HashMap,
     env,
     fs::{self, read_dir},
-    io,
+    io::{self, BufWriter, Write},
     os::unix::fs::MetadataExt,
     path::PathBuf,
+    time::SystemTime,
 };
-use text_colorizer::*;
+
+const RESET: &str = "\x1b[0m";
+const BOLD: &str = "\x1b[1m";
+const RED: &str = "\x1b[31m";
+const YELLOW: &str = "\x1b[33m";
+const GREEN: &str = "\x1b[32m";
+const BLUE: &str = "\x1b[34m";
+const WHITE: &str = "\x1b[37m";
+const GREY: &str = "\x1b[90m";
 
 #[derive(Default)]
 struct Config {
@@ -23,10 +32,6 @@ struct Config {
 }
 
 impl Config {
-    fn new() -> Self {
-        Config::default()
-    }
-
     fn parse_args(&mut self) {
         for arg in env::args().skip(1) {
             match arg {
@@ -36,7 +41,7 @@ impl Config {
                     "--human-readable" => self.human_readable = true,
                     "--group-directories-first" => self.group_directory = true,
                     "--icons" => self.show_icons = true,
-                    _ => eprintln!("{}: unknown option", arg.to_string().red().bold()),
+                    _ => eprintln!("{RED}{BOLD}{arg}{RESET}: unknown option"),
                 },
                 arg if arg.starts_with('-') => {
                     for ch in arg.chars().skip(1) {
@@ -46,24 +51,18 @@ impl Config {
                             't' => self.sort_by_time = true,
                             'h' => self.human_readable = true,
                             'g' => self.show_group = true,
-                            _ => eprintln!("{}: unknown option", ch.to_string().red().bold()),
+                            _ => eprintln!("{RED}{BOLD}{ch}{RESET}: unknown option"),
                         }
                     }
                 }
-                _ => {
-                    self.directory = Some(PathBuf::from(arg));
-                }
+                _ => self.directory = Some(PathBuf::from(arg)),
             }
         }
     }
 }
 
-fn is_hidden(entry: &std::fs::DirEntry) -> bool {
-    entry.file_name().to_string_lossy().starts_with('.')
-}
-
 fn ugo_mode(mode: u32) -> String {
-    let permissions = [
+    let bits = [
         (mode & 0o400 != 0, 'r'),
         (mode & 0o200 != 0, 'w'),
         (mode & 0o100 != 0, 'x'),
@@ -75,18 +74,17 @@ fn ugo_mode(mode: u32) -> String {
         (mode & 0o001 != 0, 'x'),
     ];
 
-    permissions
-        .iter()
-        .map(|&(bit, ch)| {
-            if bit {
-                match ch {
-                    'r' => ch.to_string().red().to_string(),
-                    'w' => ch.to_string().yellow().to_string(),
-                    'x' => ch.to_string().green().to_string(),
-                    _ => ch.to_string(),
-                }
+    bits.iter()
+        .map(|&(set, ch)| {
+            if set {
+                let color = match ch {
+                    'r' => RED,
+                    'w' => YELLOW,
+                    _ => GREEN,
+                };
+                format!("{color}{ch}{RESET}")
             } else {
-                "-".to_string().truecolor(192, 192, 192).to_string()
+                format!("{GREY}-{RESET}")
             }
         })
         .collect()
@@ -94,22 +92,19 @@ fn ugo_mode(mode: u32) -> String {
 
 fn human_format(size: u64) -> String {
     const UNITS: [char; 8] = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z'];
-    let mut unit_index = 0;
-    let mut size = size * 10;
-
-    // Whole internet is around 64 Zetabytes, no bound checking
-    while size >= 10240 {
-        size >>= 10;
-        unit_index += 1;
+    let mut idx = 0;
+    let mut s = size * 10;
+    // Whole internet is around 64 Zettabytes so no bound checking
+    while s >= 10240 {
+        s >>= 10;
+        idx += 1;
     }
-
-    format!("{:.1}{} ", size as f64 / 10.0, UNITS[unit_index])
+    format!("{:.1}{} ", s as f64 / 10.0, UNITS[idx])
 }
 
 fn get_user_name(uid: u32) -> String {
-    let mut buf: [u8; 512] = [0; 512];
+    let mut buf = [0u8; 512];
     let mut result = String::new();
-
     unsafe {
         let mut ptr: *mut passwd = std::ptr::null_mut();
         let ret = getpwuid_r(
@@ -120,18 +115,17 @@ fn get_user_name(uid: u32) -> String {
             &mut ptr,
         );
         if ret == 0 && !ptr.is_null() {
-            let cstr = std::ffi::CStr::from_ptr((*ptr).pw_name);
-            result = cstr.to_string_lossy().to_string();
+            result = std::ffi::CStr::from_ptr((*ptr).pw_name)
+                .to_string_lossy()
+                .into_owned();
         }
     }
-
     result
 }
 
 fn get_group_name(gid: u32) -> String {
-    let mut buf: [u8; 512] = [0; 512];
+    let mut buf = [0u8; 512];
     let mut result = String::new();
-
     unsafe {
         let mut ptr: *mut group = std::ptr::null_mut();
         let ret = getgrgid_r(
@@ -142,62 +136,66 @@ fn get_group_name(gid: u32) -> String {
             &mut ptr,
         );
         if ret == 0 && !ptr.is_null() {
-            let cstr = std::ffi::CStr::from_ptr((*ptr).gr_name);
-            result = cstr.to_string_lossy().to_string();
+            result = std::ffi::CStr::from_ptr((*ptr).gr_name)
+                .to_string_lossy()
+                .into_owned();
         }
     }
-
     result
 }
 
-fn long_format(
+fn format_date(metadata: &fs::Metadata) -> String {
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let dt = DateTime::<Local>::from(metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH));
+    format!(
+        "{:02} {} {:02}:{:02}",
+        dt.day(),
+        MONTHS[(dt.month() - 1) as usize],
+        dt.hour(),
+        dt.minute()
+    )
+}
+
+fn fmt_long(
     metadata: &fs::Metadata,
     file_name: &std::ffi::OsString,
     user_cache: &mut HashMap<u32, String>,
     group_cache: &mut HashMap<u32, String>,
     config: &Config,
 ) -> String {
-    let months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
-    let datetime = DateTime::<Local>::from(metadata.modified().unwrap());
-    let formatted_date = format!(
-        "{:02} {:02} {:02}:{:02}",
-        datetime.day(),
-        months[(datetime.month() - 1) as usize],
-        datetime.hour(),
-        datetime.minute()
-    );
-    let mode = ugo_mode(metadata.mode());
-    let (mut file_name, dir_char) = if metadata.is_dir() {
+    let is_dir = metadata.is_dir();
+    let (name_colored, dir_char) = if is_dir {
         (
-            file_name.to_string_lossy().blue().bold(),
-            "d".blue().to_string(),
+            format!("{BLUE}{BOLD}{}{RESET}", file_name.to_string_lossy()),
+            format!("{BLUE}d{RESET}"),
         )
     } else {
         (
-            file_name.to_string_lossy().white().bold(),
-            "-".white().to_string(),
+            format!("{WHITE}{BOLD}{}{RESET}", file_name.to_string_lossy()),
+            format!("{WHITE}-{RESET}"),
         )
     };
 
-    if config.show_icons && metadata.is_dir() {
-        file_name = format!("\u{f07b} {file_name}").blue().to_string().bold()
-    }
+    let name_colored = if config.show_icons && is_dir {
+        format!(
+            "{BLUE}{BOLD}\u{f07b} {}{RESET}",
+            file_name.to_string_lossy()
+        )
+    } else {
+        name_colored
+    };
 
-    let u_id = metadata.uid();
-    let g_id = metadata.gid();
-
-    let user_name = user_cache
-        .entry(u_id)
-        .or_insert_with(|| get_user_name(u_id));
-
-    let group_name = if config.show_group {
+    let uid = metadata.uid();
+    let gid = metadata.gid();
+    let user = user_cache.entry(uid).or_insert_with(|| get_user_name(uid));
+    let group = if config.show_group {
         format!(
             "{} ",
             group_cache
-                .entry(g_id)
-                .or_insert_with(|| get_group_name(g_id))
+                .entry(gid)
+                .or_insert_with(|| get_group_name(gid))
         )
     } else {
         String::new()
@@ -209,76 +207,88 @@ fn long_format(
         metadata.len().to_string()
     };
 
-    format!("{dir_char}{mode} {user_name} {group_name}{size:>8} {formatted_date} {file_name}")
+    format!(
+        "{dir_char}{} {user} {group}{size:>8} {} {name_colored}",
+        ugo_mode(metadata.mode()),
+        format_date(metadata),
+    )
 }
 
-fn short_format(metadata: &fs::Metadata, file_name: &std::ffi::OsString) -> String {
-    let file_name = if metadata.is_dir() {
-        file_name.to_string_lossy().blue().bold().to_string()
+fn write_short(
+    out: &mut impl Write,
+    metadata: &fs::Metadata,
+    file_name: &std::ffi::OsString,
+) -> io::Result<()> {
+    if metadata.is_dir() {
+        writeln!(out, "{BLUE}{BOLD}{}{RESET}", file_name.to_string_lossy())
     } else {
-        file_name.to_string_lossy().white().bold().to_string()
-    };
-
-    file_name
+        writeln!(out, "{WHITE}{BOLD}{}{RESET}", file_name.to_string_lossy())
+    }
 }
 
-fn list_files(path: &PathBuf, config: &Config) -> io::Result<Vec<String>> {
-    let mut entries: Vec<std::fs::DirEntry> = read_dir(path)?
-        .filter_map(Result::ok)
-        .filter(|e| config.show_all || !is_hidden(e))
-        .collect();
-
-    if config.sort_by_time {
-        entries.sort_unstable_by_key(|e| {
-            let metadata = e.metadata().unwrap();
-            std::cmp::Reverse(metadata.modified().unwrap())
-        });
-    }
-
-    if config.group_directory {
-        entries.sort_unstable_by_key(|e| {
-            let metadata = e.metadata().unwrap();
-            std::cmp::Reverse(metadata.is_dir())
-        });
-    }
-
-    let mut user_cache = HashMap::new();
-    let mut group_cache = HashMap::new();
-
-    entries
-        .iter()
-        .map(|entry| {
-            let metadata = entry.metadata()?;
-            let file_name = entry.file_name();
-
-            if config.long_format {
-                Ok(long_format(
-                    &metadata,
-                    &file_name,
-                    &mut user_cache,
-                    &mut group_cache,
-                    config,
-                ))
-            } else {
-                Ok(short_format(&metadata, &file_name))
-            }
-        })
-        .collect()
+struct Entry {
+    dir_entry: std::fs::DirEntry,
+    metadata: fs::Metadata,
 }
 
-fn main() -> Result<(), std::io::Error> {
-    let mut config = Config::new();
+fn main() -> io::Result<()> {
+    let mut config = Config::default();
     config.parse_args();
     let path = config.directory.clone().unwrap_or(env::current_dir()?);
-    match list_files(&path, &config) {
-        Ok(results) => {
-            for result in results {
-                println!("{result}");
+
+    let mut entries: Vec<Entry> = read_dir(&path)?
+        .filter_map(Result::ok)
+        .filter(|e| config.show_all || !e.file_name().to_string_lossy().starts_with('.'))
+        .filter_map(|e| {
+            e.metadata().ok().map(|m| Entry {
+                dir_entry: e,
+                metadata: m,
+            })
+        })
+        .fold(Vec::with_capacity(8), |mut v, e| {
+            v.push(e);
+            v
+        });
+
+    entries.sort_unstable_by(|a, b| {
+        if config.group_directory {
+            let dir_ord = b.metadata.is_dir().cmp(&a.metadata.is_dir());
+            if dir_ord != std::cmp::Ordering::Equal {
+                return dir_ord;
             }
         }
-        Err(err) => {
-            eprintln!("{}: {}", "Error".red().bold(), err);
+        if config.sort_by_time {
+            let ta = a.metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+            let tb = b.metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+            return tb.cmp(&ta);
+        }
+        std::cmp::Ordering::Equal
+    });
+
+    let stdout = io::stdout();
+    let mut out = BufWriter::new(stdout.lock());
+    let mut user_cache: HashMap<u32, String> = HashMap::new();
+    let mut group_cache: HashMap<u32, String> = HashMap::new();
+
+    for e in &entries {
+        let name = e.dir_entry.file_name();
+        let res = if config.long_format {
+            let line = fmt_long(
+                &e.metadata,
+                &name,
+                &mut user_cache,
+                &mut group_cache,
+                &config,
+            );
+            writeln!(out, "{line}")
+        } else {
+            write_short(&mut out, &e.metadata, &name)
+        };
+        if res.is_err() {
+            break;
         }
     }
+
+    let _ = out.flush();
     Ok(())
 }
